@@ -1,7 +1,3 @@
-# ! pip list | grep scikit-learn
-# 0.18.1
-
-
 import numpy as np
 import pydotplus
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
