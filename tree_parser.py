@@ -59,24 +59,24 @@ def decision_paths(clf, feature_list, is_print=False):
                          children_right[i],
                          ))
             
-    decision_paths = dict({0: None})
+    decision_path = dict({0: None})
     decision_depth = dict()
     for i in range(n_nodes):
         decision_depth.update({i: node_depth[i]})
         if not is_leaves[i]:
             left_node = children_left[i]
             right_node = children_right[i]
-            left_condition = (decision_paths.get(i)+' and ' if decision_paths.get(
+            left_condition = (decision_path.get(i)+' and ' if decision_path.get(
                 i) else '')+feature_list[feature[i]]+'<='+str(round(threshold[i], 2))
-            right_condition = (decision_paths.get(i)+' and ' if decision_paths.get(
+            right_condition = (decision_path.get(i)+' and ' if decision_path.get(
                 i) else '')+feature_list[feature[i]]+'>'+str(round(threshold[i], 2))
-            decision_paths.update({left_node: left_condition})
-            decision_paths.update({right_node: right_condition})
+            decision_path.update({left_node: left_condition})
+            decision_path.update({right_node: right_condition})
 
-    return decision_paths, decision_depth
+    return decision_path, decision_depth
 
 
-def get_batch(clf, x, y):
+def leaf_batches(clf, x, y):
     n_nodes = clf.tree_.node_count
     children_left = clf.tree_.children_left
     children_right = clf.tree_.children_right
