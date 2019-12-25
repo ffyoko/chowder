@@ -4,7 +4,7 @@ from pandas.core.dtypes.common import is_integer
 from pandas.core.reshape.tile import _format_labels
 
 
-def get_cutpoints(score, q=10, winsor=True, append=False, de_dup=True):
+def equifrequency_cutpoints(score, q=10, winsor=True, append=False, de_dup=True):
     score = pd.Series(score)
 #     bins = pd.qcut(score, q=q, retbins=True, duplicates='drop', precision=8)[1]
 
@@ -33,8 +33,8 @@ def x_encoder(score, splitter='qcut', q=10, order=False):
     score = pd.Series(score)
 
     if splitter == 'qcut':
-        bins, _ = get_cutpoints(score, q=q, winsor=True,
-                                append=False, de_dup=True)
+        bins, _ = equifrequency_cutpoints(score, q=q, winsor=True, 
+                                          append=False, de_dup=True)
         intervals = len(bins)-1
     elif splitter == 'cut':
         bins = intervals = q
