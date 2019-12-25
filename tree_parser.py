@@ -22,7 +22,7 @@ img = Image(graph.create_png())
 display(img)
 
 
-def decision_paths(clf, feature_list):
+def decision_paths(clf, feature_list, is_print=False):
     n_nodes = clf.tree_.node_count
     children_left = clf.tree_.children_left
     children_right = clf.tree_.children_right
@@ -40,7 +40,25 @@ def decision_paths(clf, feature_list):
             stack.append((children_right[node_id], parent_depth + 1))
         else:
             is_leaves[node_id] = True
-
+    
+    if is_print:
+        print("The binary tree structure has %s nodes and has "
+              "the following tree structure:"
+              % n_nodes)
+        for i in range(n_nodes):
+            if is_leaves[i]:
+                print("%snode=%s leaf node." % (node_depth[i] * "\t", i))
+            else:
+                print("%snode=%s test node: go to node %s if %s<=%s else to "
+                      "node %s."
+                      % (node_depth[i] * "\t",
+                         i,
+                         children_left[i],
+                         feature_list[feature[i]],
+                         round(threshold[i], 2),
+                         children_right[i],
+                         ))
+            
     decision_paths = dict({0: None})
     decision_depth = dict()
     for i in range(n_nodes):
