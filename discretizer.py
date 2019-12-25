@@ -39,7 +39,7 @@ def x_encoder(score, splitter='qcut', q=10, order=False):
     elif splitter == 'cut':
         bins = intervals = q
     elif splitter == 'cluster':
-        None
+        raise ValueError('splitter is not defined.')
     else:
         raise ValueError('splitter is not defined.')
     
