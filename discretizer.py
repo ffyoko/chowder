@@ -1,6 +1,6 @@
 import numpy as np
 import pandas.core.algorithms as algos
-from pandas.core.dtypes.common import is_integer
+from pandas.core.dtypes.common import is_integer, is_string_dtype
 from pandas.core.reshape.tile import _format_labels
 
 
@@ -29,7 +29,7 @@ def equifrequency_cutpoints(score, q=10, winsor=True, append=False, de_dup=True)
     return bins, labels
 
 
-def x_encoder(score, splitter='qcut', q=10, order=False, fillna=-1):
+def x_encoder(score, splitter='qcut', q=10, order=True, fillna=-1):
     score = pd.Series(score)
 
     if splitter == 'qcut':
