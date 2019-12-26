@@ -29,7 +29,7 @@ def equifrequency_cutpoints(score, q=10, winsor=True, append=False, de_dup=True)
     return bins, labels
 
 
-def x_encoder(score, splitter='qcut', q=10, order=False):
+def x_encoder(score, splitter='qcut', q=10, order=False, fillna=-1):
     score = pd.Series(score)
 
     if splitter == 'qcut':
@@ -46,5 +46,9 @@ def x_encoder(score, splitter='qcut', q=10, order=False):
     labels = range(intervals, 0, -1) if order else None
 
     levels = pd.cut(score, bins=bins, labels=labels)
+    
+    if fillna is not False:
+        levels.cat.add_categories([fillna], inplace=True)
+        levels.fillna(fillna, inplace=True)
 
     return levels
