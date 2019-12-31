@@ -3,20 +3,8 @@ from sklearn.model_selection import cross_val_score
 from sklearn.ensemble import RandomForestClassifier as RFC
 from sklearn.svm import SVC
 import xgboost as xgb
-
 from bayes_opt import BayesianOptimization
 from bayes_opt.util import Colours
-
-
-def get_data():
-    data, targets = make_classification(
-        n_samples=1000,
-        n_features=45,
-        n_informative=12,
-        n_redundant=7,
-        random_state=134985745
-    )
-    return data, targets
 
 
 def svc_cv(C, gamma, data, targets):
@@ -148,15 +136,16 @@ def optimize_xgb(data, targets):
 
 
 if __name__ == "__main__":
-    data, targets = get_data()
+    x, y = make_classification(
+        n_samples=1000, n_features=45, n_informative=12, n_redundant=7, random_state=1)
 
     print(Colours.yellow("--- Optimizing SVM ---"))
-    optimize_svc(data, targets)
+    optimize_svc(x, y)
 
     print(Colours.green("--- Optimizing Random Forest ---"))
-    optimize_rfc(data, targets)
+    optimize_rfc(x, y)
 
     RMSEbest = 10.
     ITERbest = 0
     print(Colours.blue("--- Optimizing XGBoost ---"))
-    optimize_xgb(data, targets)
+    optimize_xgb(x, y)
