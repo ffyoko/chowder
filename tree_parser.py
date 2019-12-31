@@ -1,21 +1,9 @@
 import numpy as np
-import pydotplus
+import pandas as pd
+from sklearn.datasets import make_classification
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
+import pydotplus
 from IPython.display import display, Image
-
-
-kwargs = {'feature_names': x.columns, 'class_names': [
-    '0', '1'], 'filled': True, 'rounded': True, 'special_characters': True}
-dot_data = export_graphviz(clf, out_file=None, **kwargs)
-export_graphviz(clf, out_file='tree.dot', **kwargs)
-# with open("tree.dot", 'w') as f:
-#     f = export_graphviz(clf, out_file=f)
-with open('tree.dot', 'r') as f:
-    dot_data = f.read()
-graph = pydotplus.graph_from_dot_data(dot_data)
-graph.write_png('tree.png')
-img = Image(graph.create_png())
-display(img)
 
 
 def decision_paths(clf, feature_list, is_print=False):
@@ -105,3 +93,34 @@ def leaf_batches(clf, x, y):
         y), 'proportion': 1, 'overdue_num': y.sum(), 'leaf_overdue': y.sum()/len(y)}, ignore_index=True)
     leaf_overdue['lift'] = leaf_overdue['leaf_overdue'] / (y.sum()/len(y))
     return leaf_overdue
+
+
+if __name__ == "__main__":
+    x, y = make_classification(
+        n_samples=1000, n_features=45, n_informative=12, n_redundant=7, random_state=1)
+    feature_list = [f'feature_{i}' for i in range(0, 45)]
+    x = pd.DataFrame.from_records(x, columns=feature_list)
+    y = pd.Series.from_array(y, name='label')
+    
+    clf = DecisionTreeClassifier(criterion='gini', max_depth=4,
+                                 min_samples_leaf=0.01, splitter='best', random_state=1)
+    clf.fit(x, y)
+    
+    decision_path, decision_depth = decision_paths(clf, feature_list, True)
+    leaf_batch = leaf_batches(clf, x, y)
+    leaf_batch['decision_path'] = leaf_batch['leaf_index'].map(
+        decision_path.get)
+    print(leaf_batch)
+    
+#     kwargs = {'feature_names': feature_list, 'class_names': [
+#         '0', '1'], 'filled': True, 'rounded': True, 'special_characters': True}
+#     dot_data = export_graphviz(clf, out_file=None, **kwargs)
+#     export_graphviz(clf, out_file='tree.dot', **kwargs)
+#     # with open("tree.dot", 'w') as f:
+#     #     f = export_graphviz(clf, out_file=f)
+#     with open('tree.dot', 'r') as f:
+#         dot_data = f.read()
+#     graph = pydotplus.graph_from_dot_data(dot_data)
+#     graph.write_png('tree.png')
+#     img = Image(graph.create_png())
+#     display(img)
