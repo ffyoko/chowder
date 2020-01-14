@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pandas.core.algorithms as algos
 from pandas.core.dtypes.common import is_integer, is_string_dtype
 from pandas.core.reshape.tile import _format_labels
