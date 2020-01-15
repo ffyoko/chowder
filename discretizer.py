@@ -55,7 +55,7 @@ def x_encoder(score, splitter='qcut', q=10, order=True, fillna=-1):
     return levels
 
 
-def describer(df, y):
+def describer(df, y, sort_index=True):
     pivot = pd.DataFrame()
     for i in set(df.columns)-set([y]):
         df[f'interval_{i}'] = x_encoder(
@@ -76,5 +76,9 @@ def describer(df, y):
                                         names=['value', 'level'])
         pivot_tmp.index = rectified_index
         pivot = pd.concat([pivot, pivot_tmp])
+        
+        if not pivot.index.is_lexsorted() and sort_index:
+            pivot.sort_index(level=pivot.index.names, inplace=True)
+        
     return pivot
 
