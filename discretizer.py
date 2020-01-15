@@ -53,3 +53,28 @@ def x_encoder(score, splitter='qcut', q=10, order=True, fillna=-1):
         levels.fillna(fillna, inplace=True)
 
     return levels
+
+
+def describer(df, y):
+    pivot = pd.DataFrame()
+    for i in set(df.columns)-set([y]):
+        df[f'interval_{i}'] = x_encoder(
+            df[i], splitter='qcut', q=10, order=False, fillna=False)
+        df[f'interval_{i}'].cat.add_categories(['NULL'], inplace=True)
+        df[f'interval_{i}'].fillna('NULL', inplace=True)
+
+        pivot_tmp = df[[f'interval_{i}', y]].groupby(
+            [f'interval_{i}']).agg(['count', 'mean'])
+        pivot_tmp['lift'] = pivot_tmp[y]['mean'] / merge[y].mean()
+
+        pivot_tmp.columns = pd.MultiIndex(
+            levels=[[y], ['count', 'mean', 'lift']], labels=[[0]*3, list(range(0, 3))])
+        desc_list = pivot_tmp.index.astype(str).tolist()
+        rectified_index = pd.MultiIndex(levels=[[i], desc_list],
+                                        labels=[
+                                            [0]*len(desc_list), range(0, len(desc_list))],
+                                        names=['value', 'level'])
+        pivot_tmp.index = rectified_index
+        pivot = pd.concat([pivot, pivot_tmp])
+    return pivot
+
