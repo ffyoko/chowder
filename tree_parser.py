@@ -171,7 +171,7 @@ if __name__ == "__main__":
     y = 'label'
     step = 300
     df['index'] = index_generator(len(df), step)
-    index = 'index'
+    index = ['index']
     rule = ['feature_37<=3.15 and feature_15>-1.17 and feature_39<=-1.13 and feature_9>-2.36',
             'feature_37<=3.15 and feature_15<=-1.17 and feature_21>2.51']
     rule_simulator(df, y, index, rule)
