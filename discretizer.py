@@ -65,7 +65,7 @@ def describer(df, y, sort_index=True):
 
         pivot_tmp = df[[f'interval_{i}', y]].groupby(
             [f'interval_{i}']).agg(['count', 'mean'])
-        pivot_tmp['lift'] = pivot_tmp[y]['mean'] / merge[y].mean()
+        pivot_tmp['lift'] = pivot_tmp[y]['mean'] / df[y].mean()
 
         pivot_tmp.columns = pd.MultiIndex(
             levels=[[y], ['count', 'mean', 'lift']], labels=[[0]*3, list(range(0, 3))])
