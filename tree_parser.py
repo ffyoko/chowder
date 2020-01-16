@@ -1,3 +1,4 @@
+import re
 import numpy as np
 import pandas as pd
 from sklearn.datasets import make_classification
@@ -95,6 +96,47 @@ def leaf_batches(clf, x, y):
     return leaf_overdue
 
 
+def index_generator(length, step):
+    body = np.arange(1, length//step+1).repeat(step)
+    tail = np.array(length//step).repeat(length % step)
+
+    return np.append(body, tail)
+
+
+def rule_reformer(rule):
+    feature_dict = {}
+    for i in rule:
+        for j in i.split(' and '):
+            f, _ = re.split('<|<=|==|>=|>', j)
+            feature_dict.update({f: 'x["'+f+'"]'})
+    pattern = re.compile('|'.join(feature_dict.keys()))
+    feature_list = [
+        '('+pattern.sub(lambda x: feature_dict[x.group(0)], i)+')' for i in rule]
+
+    return ' or '.join(feature_list)
+
+
+def decision_making_engine(x, rule):
+    return int(eval(rule))
+
+
+def rule_simulator(df, y, index, rule):
+    df['full'] = 1
+    kwargs = {'rule': rule_reformer(rule)}
+    df['hit'] = df.apply(decision_making_engine, **kwargs, axis=1)
+    df[f'hit_{y}'] = df.apply(lambda x: 1 if (
+        x['hit'] == 1 and x[f'{y}'] == 1) else 0, axis=1)
+    result = df.groupby(index)[['full', y, 'hit', f'hit_{y}']].sum()
+    result.rename(columns={'full': 'full_num', y: f'{y}_num',
+                           'hit': 'hit_num', f'hit_{y}': f'hit_{y}_num'}, inplace=True)
+    result[y] = result[f'{y}_num']/result['full_num']
+    result['hit'] = result['hit_num']/result['full_num']
+    result[f'hit_{y}'] = result[f'hit_{y}_num']/result['hit_num']
+    result['lift'] = result[f'hit_{y}']/result[f'{y}']
+
+    return result
+
+
 if __name__ == "__main__":
     x, y = make_classification(
         n_samples=1000, n_features=45, n_informative=12, n_redundant=7, random_state=1)
@@ -110,7 +152,7 @@ if __name__ == "__main__":
     leaf_batch = leaf_batches(clf, x, y)
     leaf_batch['decision_path'] = leaf_batch['leaf_index'].map(
         decision_path.get)
-    print(leaf_batch)
+    leaf_batch
     
 #     kwargs = {'feature_names': feature_list, 'class_names': [
 #         '0', '1'], 'filled': True, 'rounded': True, 'special_characters': True}
@@ -124,3 +166,12 @@ if __name__ == "__main__":
 #     graph.write_png('tree.png')
 #     img = Image(graph.create_png())
 #     display(img)
+
+    df = pd.concat([x, y], axis=1)
+    y = 'label'
+    step = 300
+    df['index'] = index_generator(len(df), step)
+    index = 'index'
+    rule = ['feature_37<=3.15 and feature_15>-1.17 and feature_39<=-1.13 and feature_9>-2.36',
+            'feature_37<=3.15 and feature_15<=-1.17 and feature_21>2.51']
+    rule_simulator(df, y, index, rule)
