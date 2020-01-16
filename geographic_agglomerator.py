@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 from discretizer import equifrequency_cutpoints, x_encoder
@@ -93,7 +94,7 @@ class geographic_agglomerator(object):
         return result
 
     if __name__ == "__main__":
-        df = pd.read_pickle('train_20200115.pkl')
+        df = pd.read_pickle(os.getcwd()+'train_20200115.pkl')
 
         kms_per_radian = 6371
         eps = 0.5 / kms_per_radian
