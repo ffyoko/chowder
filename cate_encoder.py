@@ -49,4 +49,4 @@ class AppCateEncoder(BaseEstimator, TransformerMixin):
         pred_sample = '主题商店,360° 照片编辑器,withTV,美团,字典,贷上钱,S换机助手下载,工银融e联,欧朋流量助手,Excel,游戏中心,天气,微信,虎牙直播,迅雷,红包助手,中国工商银行,平安普惠,铃声多多,开心消消乐®,腾讯视频,录制屏幕,链接分享,提醒,汽车之家,慢动作编辑器,Word,PowerPoint,Google通讯录同步,UC浏览器,订阅日历,抖音短视频,百度输入法,QQ,酷狗音乐,图片编辑器,Google 日历同步,英雄战魂2,喜马拉雅FM-听书电台,光大银行,计算器,三星健康,欢乐斗地主,三星云,领英,视频剪辑器,Bixby 视觉,来分期,三星拍立淘,汽车点评,三星盖乐世好友,快牙,用钱宝,邮储银行,手机淘宝,三星书城,掌上生活,惠花花,放大镜,三星畅联,支付宝,招联好期贷,马上金融,网商银行, PP助手,360借条,手机贷,多享金汇,现金借款,阳光惠生活,追书神器'
         pred_sample = pd.Series(pred_sample)
         app_cate = enc.transform(pred_sample)
-        app_cate[['app_汽车_ratio', 'app_理财_ratio', 'app_通讯社交_ratio','app_借贷_ratio']]
+        app_cate.filter(regex='^((?!ratio).)+$', axis=1)
