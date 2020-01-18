@@ -59,9 +59,7 @@ def describer(df, y, sort_index=True):
     pivot = pd.DataFrame()
     for i in set(df.columns)-set([y]):
         df[f'interval_{i}'] = x_encoder(
-            df[i], splitter='qcut', q=10, order=False, fillna=False)
-        df[f'interval_{i}'].cat.add_categories(['NULL'], inplace=True)
-        df[f'interval_{i}'].fillna('NULL', inplace=True)
+            df[i], splitter='qcut', q=10, order=False, fillna='NULL')
 
         pivot_tmp = df[[f'interval_{i}', y]].groupby(
             [f'interval_{i}']).agg(['count', 'mean'])
