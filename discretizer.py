@@ -3,6 +3,8 @@ import pandas as pd
 import pandas.core.algorithms as algos
 from pandas.core.dtypes.common import is_integer, is_string_dtype
 from pandas.core.reshape.tile import _format_labels
+from sklearn.model_selection import StratifiedKFold
+from itertools import product
 
 
 def equifrequency_cutpoints(score, q=10, winsor=True, append=False, de_dup=True):
@@ -55,9 +57,6 @@ def x_encoder(score, splitter='qcut', q=10, order=True, fillna=-1):
     return levels
 
 
-from sklearn.model_selection import StratifiedKFold
-from itertools import product
-
 class MeanEncoder:
     def __init__(self, categorical_features, n_splits=5, target_type='classification', prior_weight_func=None):
         self.categorical_features = categorical_features
@@ -72,7 +71,8 @@ class MeanEncoder:
             self.target_values = None
 
         if isinstance(prior_weight_func, dict):
-            self.prior_weight_func = eval('lambda x: 1 / (1 + np.exp((x - k) / f))', dict(prior_weight_func, np=np))
+            self.prior_weight_func = eval(
+                'lambda x: 1 / (1 + np.exp((x - k) / f))', dict(prior_weight_func, np=np))
         elif callable(prior_weight_func):
             self.prior_weight_func = prior_weight_func
         else:
@@ -85,19 +85,23 @@ class MeanEncoder:
 
         if target is not None:
             nf_name = '{}_pred_{}'.format(variable, target)
-            X_train['pred_temp'] = (y_train == target).astype(int)  # classification
+            X_train['pred_temp'] = (y_train == target).astype(
+                int)  # classification
         else:
             nf_name = '{}_pred'.format(variable)
             X_train['pred_temp'] = y_train  # regression
         prior = X_train['pred_temp'].mean()
 
-        col_avg_y = X_train.groupby(by=variable, axis=0)['pred_temp'].agg({'mean': 'mean', 'beta': 'size'})
+        col_avg_y = X_train.groupby(by=variable, axis=0)['pred_temp'].agg({
+            'mean': 'mean', 'beta': 'size'})
         col_avg_y['beta'] = prior_weight_func(col_avg_y['beta'])
-        col_avg_y[nf_name] = col_avg_y['beta'] * prior + (1 - col_avg_y['beta']) * col_avg_y['mean']
+        col_avg_y[nf_name] = col_avg_y['beta'] * prior + \
+            (1 - col_avg_y['beta']) * col_avg_y['mean']
         col_avg_y.drop(['beta', 'mean'], axis=1, inplace=True)
 
         nf_train = X_train.join(col_avg_y, on=variable)[nf_name].values
-        nf_test = X_test.join(col_avg_y, on=variable).fillna(prior, inplace=False)[nf_name].values
+        nf_test = X_test.join(col_avg_y, on=variable).fillna(
+            prior, inplace=False)[nf_name].values
 
         return nf_train, nf_test, prior, col_avg_y
 
@@ -121,7 +125,8 @@ class MeanEncoder:
                     X_new.iloc[small_ind, -1] = nf_small
                     self.learned_stats[nf_name].append((prior, col_avg_y))
         else:
-            self.learned_stats = {'{}_pred'.format(variable): [] for variable in self.categorical_features}
+            self.learned_stats = {'{}_pred'.format(
+                variable): [] for variable in self.categorical_features}
             for variable in self.categorical_features:
                 nf_name = '{}_pred'.format(variable)
                 X_new.loc[:, nf_name] = np.nan
