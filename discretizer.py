@@ -168,10 +168,11 @@ def describer(df, y, sort_index=True):
 
         pivot_tmp = df[[f'interval_{i}', y]].groupby(
             [f'interval_{i}']).agg(['count', 'mean'])
+        pivot_tmp['proportion'] = pivot_tmp[y]['count'] / len(df)
         pivot_tmp['lift'] = pivot_tmp[y]['mean'] / df[y].mean()
 
         pivot_tmp.columns = pd.MultiIndex(
-            levels=[[y], ['count', 'mean', 'lift']], labels=[[0]*3, list(range(0, 3))])
+            levels=[[y], ['count', 'mean', 'proportion', 'lift']], labels=[[0]*4, list(range(0, 4))])
         desc_list = pivot_tmp.index.astype(str).tolist()
         rectified_index = pd.MultiIndex(levels=[[i], desc_list],
                                         labels=[
