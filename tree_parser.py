@@ -103,11 +103,14 @@ def index_generator(length, step):
     return np.append(body, tail)
 
 
-def rule_reformer(rule):
+def rule_reformer(rule, splitor_sup=False):
     feature_dict = {}
+    splitor = '<|<=|==|>=|>' + \
+        ('|'+splitor_sup if splitor_sup is not False else '')
     for i in rule:
         for j in i.split(' and '):
-            f, _ = re.split('<|<=|==|>=|>', j)
+            f, _ = re.split(splitor, j)
+            f = f.strip()
             feature_dict.update({f: 'x["'+f+'"]'})
     pattern = re.compile('|'.join(feature_dict.keys()))
     feature_list = [
@@ -120,9 +123,9 @@ def decision_making_engine(x, rule):
     return int(eval(rule))
 
 
-def rule_simulator(df, y, index, rule):
+def rule_simulator(df, y, index, rule, splitor_sup=False):
     df['full'] = 1
-    kwargs = {'rule': rule_reformer(rule)}
+    kwargs = {'rule': rule_reformer(rule, splitor_sup=splitor_sup)}
     df['hit'] = df.apply(decision_making_engine, **kwargs, axis=1)
     df[f'hit_{y}'] = df.apply(lambda x: 1 if (
         x['hit'] == 1 and x[f'{y}'] == 1) else 0, axis=1)
