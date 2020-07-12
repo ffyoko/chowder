@@ -238,13 +238,26 @@ if __name__ == "__main__":
     rule_simulator(df, y, index, rule)
 
 
+#     params = {
+#         'base_score': np.mean(y),
+#         'eta': 0.1,
+#         'max_depth': 3,
+#         'gamma': 3,
+#         'objective': 'reg:linear',
+#         'eval_metric': 'mae'
+#     }
     params = {
         'base_score': np.mean(y),
         'eta': 0.1,
-        'max_depth': 3,
+        'lambda': 10,
         'gamma': 3,
-        'objective': 'reg:linear',
-        'eval_metric': 'mae'
+        'max_depth': 2,
+        'subsample': 0.75,
+        'colsample_bytree': 0.75,
+        'min_child_weight': 2,
+        'objective': 'binary:logistic',
+        'booster': 'gbtree',
+        'eval_metric': 'auc'
     }
     clf = xgb.train(params=params,
                     dtrain=xgb.DMatrix(data=x, label=y),
