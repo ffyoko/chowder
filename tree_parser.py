@@ -5,6 +5,7 @@ from sklearn.datasets import make_classification
 from sklearn.tree import DecisionTreeClassifier, export_graphviz
 import pydotplus
 from IPython.display import display, Image
+import xgboost as xgb
 
 
 def decision_paths(clf, feature_list, is_print=False):
@@ -140,23 +141,81 @@ def rule_simulator(df, y, index, rule, splitor_sup=False):
     return result
 
 
+def string_parser(s):
+    if len(re.findall(r":leaf=", s)) == 0:
+        out = re.findall(r"[\w.-]+", s)
+        tabs = re.findall(r"[\t]+", s)
+        if (out[4] == out[8]):
+            missing_value_handling = (" or np.isnan(x['" + out[1] + "']) ")
+        else:
+            missing_value_handling = ""
+
+        if len(tabs) > 0:
+            return (re.findall(r"[\t]+", s)[0].replace('\t', '    ') +
+                    '        if state == ' + out[0] + ':\n' +
+                    re.findall(r"[\t]+", s)[0].replace('\t', '    ') +
+                    '            state = (' + out[4] + ' if ' + "x['" +
+                    out[1] + "']<" + out[2] + missing_value_handling +
+                    ' else ' + out[6] + ')\n')
+
+        else:
+            return ('        if state == ' + out[0] + ':\n' +
+                    '            state = (' + out[4] + ' if ' + "x['" +
+                    out[1] + "']<" + out[2] + missing_value_handling +
+                    ' else ' + out[6] + ')\n')
+    else:
+        out = re.findall(r"[\d.-]+", s)
+        return (re.findall(r"[\t]+", s)[0].replace('\t', '    ') +
+                '        if state == ' + out[0] + ':\n    ' +
+                re.findall(r"[\t]+", s)[0].replace('\t', '    ') +
+                '        return ' + out[1] + '\n')
+
+
+def booster_parser(tree, i):
+    if i == 0:
+        return ('    if num_booster == 0:\n        state = 0\n' + "".join([
+            string_parser(tree.split('\n')[i])
+            for i in range(len(tree.split('\n')) - 1)
+        ]))
+    else:
+        return ('    elif num_booster == ' + str(i) +
+                ':\n        state = 0\n' + "".join([
+                    string_parser(tree.split('\n')[i])
+                    for i in range(len(tree.split('\n')) - 1)
+                ]))
+
+
+def model_to_py(base_score, model, out_file):
+    trees = model.get_dump()
+    result = ["import numpy as np\n\n" + "def xgb_tree(x, num_booster):\n"]
+
+    for i in range(len(trees)):
+        result.append(booster_parser(trees[i], i))
+
+    with open(out_file, 'a') as the_file:
+        the_file.write("".join(result) +
+                       "\ndef xgb_predict(x):\n    predict = " +
+                       str(base_score) + "\n" +
+                       "# initialize prediction with base score\n" +
+                       "    for i in range(" + str(len(trees)) +
+                       "):\n        predict = predict + xgb_tree(x, i)" +
+                       "\n    return predict")
+
+
 if __name__ == "__main__":
     x, y = make_classification(
         n_samples=1000, n_features=45, n_informative=12, n_redundant=7, random_state=1)
     feature_list = [f'feature_{i}' for i in range(0, 45)]
     x = pd.DataFrame.from_records(x, columns=feature_list)
     y = pd.Series.from_array(y, name='label')
-    
     clf = DecisionTreeClassifier(criterion='gini', max_depth=4,
                                  min_samples_leaf=0.01, splitter='best', random_state=1)
     clf.fit(x, y)
-    
     decision_path, decision_depth = decision_paths(clf, feature_list, True)
     leaf_batch = leaf_batches(clf, x, y)
     leaf_batch['decision_path'] = leaf_batch['leaf_index'].map(
         decision_path.get)
     leaf_batch
-    
 #     kwargs = {'feature_names': feature_list, 'class_names': [
 #         '0', '1'], 'filled': True, 'rounded': True, 'special_characters': True}
 #     dot_data = export_graphviz(clf, out_file=None, **kwargs)
@@ -169,7 +228,6 @@ if __name__ == "__main__":
 #     graph.write_png('tree.png')
 #     img = Image(graph.create_png())
 #     display(img)
-
     df = pd.concat([x, y], axis=1)
     y = 'label'
     step = 300
@@ -178,3 +236,22 @@ if __name__ == "__main__":
     rule = ['feature_37<=3.15 and feature_15>-1.17 and feature_39<=-1.13 and feature_9>-2.36',
             'feature_37<=3.15 and feature_15<=-1.17 and feature_21>2.51']
     rule_simulator(df, y, index, rule)
+
+
+    params = {
+        'base_score': np.mean(y),
+        'eta': 0.1,
+        'max_depth': 3,
+        'gamma': 3,
+        'objective': 'reg:linear',
+        'eval_metric': 'mae'
+    }
+    clf = xgb.train(params=params,
+                    dtrain=xgb.DMatrix(data=x, label=y),
+                    num_boost_round=3)
+    # import os
+    # os.environ['PATH'] += os.pathsep + 'C:\Program Files (x86)\Graphviz2.38/bin/'
+    xgb.to_graphviz(booster=clf, num_trees=0)
+    clf.get_dump()
+    clf.trees_to_dataframe()
+    model_to_py(params['base_score'], clf, 'predictor.py')
