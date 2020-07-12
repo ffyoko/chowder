@@ -255,3 +255,8 @@ if __name__ == "__main__":
     clf.get_dump()
     clf.trees_to_dataframe()
     model_to_py(params['base_score'], clf, 'predictor.py')
+    
+    import predictor as clf
+    clf.xgb_predict(x.loc[0])
+    
+    
