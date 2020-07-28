@@ -202,6 +202,102 @@ def model_to_py(base_score, model, out_file):
                        "\n    return predict")
 
 
+def trees_to_dataframe(clf):
+    tree_ids = []
+    node_ids = []
+    fids = []
+    splits = []
+    y_directs = []
+    n_directs = []
+    missings = []
+    gains = []
+    covers = []
+
+    decision_paths = dict()
+    scores = dict()
+    trees = clf.get_dump(with_stats=True)
+    for i, tree in enumerate(trees):
+        decision_paths.update({str(i) + '-0': None})
+        for line in tree.split('\n'):
+            arr = line.split('[')
+            # Leaf node
+            if len(arr) == 1:
+                # Last element of line.split is an empy string
+                if arr == ['']:
+                    continue
+                # parse string
+                parse = arr[0].split(':')
+                stats = re.split('=|,', parse[1])
+
+                # append to lists
+                tree_ids.append(i)
+                node_ids.append(int(re.findall(r'\b\d+\b', parse[0])[0]))
+                fids.append('Leaf')
+                splits.append(float('NAN'))
+                y_directs.append(float('NAN'))
+                n_directs.append(float('NAN'))
+                missings.append(float('NAN'))
+                gains.append(float(stats[1]))
+                covers.append(float(stats[3]))
+
+                # update dicts
+                parent_key = str(i) + '-' + re.findall(r'\b\d+\b', arr[0])[0]
+                scores.update({parent_key: float(stats[1])})
+
+            # Not a Leaf Node
+            else:
+                # parse string
+                fid = arr[1].split(']')
+                parse = fid[0].split('<')
+                stats = re.split('=|,', fid[1])
+
+                # append to lists
+                tree_ids.append(i)
+                node_ids.append(int(re.findall(r'\b\d+\b', arr[0])[0]))
+                fids.append(parse[0])
+                splits.append(float(parse[1]))
+                str_i = str(i)
+                y_directs.append(str_i + '-' + stats[1])
+                n_directs.append(str_i + '-' + stats[3])
+                missings.append(str_i + '-' + stats[5])
+                gains.append(float(stats[7]))
+                covers.append(float(stats[9]))
+
+                # update dicts
+                parent_key = str(i) + '-' + re.findall(r'\b\d+\b', arr[0])[0]
+                scores.update({parent_key: float(stats[7])})
+                left_direct_key = str_i + '-' + stats[1]
+                right_direct_key = str_i + '-' + stats[3]
+                left_direct_value = parse[0] + '<' + parse[1]
+                right_direct_value = parse[0] + '>=' + parse[1]
+                missing_value = parse[0] + ' is missing'
+                if (str_i + '-' + stats[5]) == left_direct_key:
+                    left_direct_value = '(' + left_direct_value + \
+                        ' or ' + missing_value + ')'
+                    right_direct_value = '(' + right_direct_value + ')'
+                else:
+                    left_direct_value = '(' + left_direct_value + ')'
+                    right_direct_value = '(' + right_direct_value + \
+                        ' or ' + missing_value + ')'
+                if decision_paths.get(parent_key) is not None:
+                    left_direct_value = '(' + decision_paths.get(parent_key) + \
+                        ' and ' + left_direct_value + ')'
+                    right_direct_value = '(' + decision_paths.get(parent_key) + \
+                        ' and ' + right_direct_value + ')'
+                decision_paths.update({left_direct_key: left_direct_value})
+                decision_paths.update({right_direct_key: right_direct_value})
+    ids = [str(t_id) + '-' + str(n_id)
+           for t_id, n_id in zip(tree_ids, node_ids)]
+    import pandas as pd
+    df = pd.DataFrame({'Tree': tree_ids, 'Node': node_ids, 'ID': ids,
+                       'Feature': fids, 'Split': splits, 'Yes': y_directs,
+                       'No': n_directs, 'Missing': missings, 'Gain': gains,
+                       'Cover': covers})
+    df = df[['Tree', 'Node', 'ID', 'Feature', 'Split',
+             'Yes', 'No', 'Missing', 'Gain', 'Cover']]
+    return df, decision_paths, scores
+        
+
 if __name__ == "__main__":
     x, y = make_classification(
         n_samples=1000, n_features=45, n_informative=12, n_redundant=7, random_state=1)
@@ -271,5 +367,7 @@ if __name__ == "__main__":
     
     import predictor as clf
     clf.xgb_predict(x.loc[0])
+    
+    df, decision_paths, scores = trees_to_dataframe(clf)
     
     
