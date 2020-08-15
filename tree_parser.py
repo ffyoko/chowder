@@ -7,6 +7,12 @@ import pydotplus
 from IPython.display import display, Image
 import xgboost as xgb
 
+import warnings
+warnings.filterwarnings('ignore')
+
+# from IPython.core.interactiveshell import InteractiveShell
+# InteractiveShell.ast_node_interactivity = 'all'
+
 
 def decision_paths(clf, feature_list, is_print=False):
     n_nodes = clf.tree_.node_count
@@ -344,8 +350,9 @@ if __name__ == "__main__":
                                n_redundant=7,
                                random_state=1)
     feature_list = [f'feature_{i}' for i in range(0, 45)]
-    x = pd.DataFrame.from_records(x, columns=feature_list)
-    y = pd.Series.from_array(y, name='label')
+    x = pd.DataFrame(data=x, columns=feature_list)
+    y = pd.Series(data=y, name='label')
+
     clf = DecisionTreeClassifier(criterion='gini',
                                  max_depth=4,
                                  min_samples_leaf=0.01,
