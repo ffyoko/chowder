@@ -57,6 +57,36 @@ def x_encoder(score, splitter='qcut', q=10, order=True, fillna=-1):
     return levels
 
 
+def describer(df, y, bins_dict, sort_index=False):
+    pivot = pd.DataFrame()
+    for i in set(df.columns) - set([y]):
+        bins = bins_dict.get(i)
+        if len(bins) > 1:
+            df['interval_{}'.format(i)] = pd.cut(df[i], bins=bins, labels=None)
+
+            pivot_tmp = df[['interval_{}'.format(i),
+                            y]].groupby(['interval_{}'.format(i)
+                                         ]).agg(['count', 'mean'])
+            pivot_tmp['proportion'] = pivot_tmp[y]['count'] / len(df)
+            pivot_tmp['lift'] = pivot_tmp[y]['mean'] / df[y].mean()
+
+            pivot_tmp.columns = pd.MultiIndex(
+                levels=[[y], ['count', 'mean', 'proportion', 'lift']],
+                codes=[[0] * 4, list(range(0, 4))])
+            desc_list = pivot_tmp.index.astype(str).tolist()
+            rectified_index = pd.MultiIndex(levels=[[i], desc_list],
+                                            codes=[[0] * len(desc_list),
+                                                   range(0, len(desc_list))],
+                                            names=['value', 'level'])
+            pivot_tmp.index = rectified_index
+            pivot = pd.concat([pivot, pivot_tmp])
+
+            if not pivot.index.is_lexsorted() and sort_index:
+                pivot.sort_index(level=pivot.index.names, inplace=True)
+
+    return pivot
+
+
 class MeanEncoder:
     def __init__(self, categorical_features, n_splits=5, target_type='classification', prior_weight_func=None):
         self.categorical_features = categorical_features
@@ -159,30 +189,4 @@ class MeanEncoder:
 
         return X_new
 
-
-def describer(df, y, sort_index=True):
-    pivot = pd.DataFrame()
-    for i in set(df.columns)-set([y]):
-        df[f'interval_{i}'] = x_encoder(
-            df[i], splitter='qcut', q=10, order=False, fillna='NULL')
-
-        pivot_tmp = df[[f'interval_{i}', y]].groupby(
-            [f'interval_{i}']).agg(['count', 'mean'])
-        pivot_tmp['proportion'] = pivot_tmp[y]['count'] / len(df)
-        pivot_tmp['lift'] = pivot_tmp[y]['mean'] / df[y].mean()
-
-        pivot_tmp.columns = pd.MultiIndex(
-            levels=[[y], ['count', 'mean', 'proportion', 'lift']], labels=[[0]*4, list(range(0, 4))])
-        desc_list = pivot_tmp.index.astype(str).tolist()
-        rectified_index = pd.MultiIndex(levels=[[i], desc_list],
-                                        labels=[
-                                            [0]*len(desc_list), range(0, len(desc_list))],
-                                        names=['value', 'level'])
-        pivot_tmp.index = rectified_index
-        pivot = pd.concat([pivot, pivot_tmp])
-        
-        if not pivot.index.is_lexsorted() and sort_index:
-            pivot.sort_index(level=pivot.index.names, inplace=True)
-        
-    return pivot
-
+    
