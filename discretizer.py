@@ -1,60 +1,43 @@
 import numpy as np
 import pandas as pd
 import pandas.core.algorithms as algos
-from pandas.core.dtypes.common import is_integer, is_string_dtype
 from pandas.core.reshape.tile import _format_labels
-from sklearn.model_selection import StratifiedKFold
-from itertools import product
 
 
-def equifrequency_cutpoints(score, q=10, winsor=True, append=False, de_dup=True):
-    score = pd.Series(score)
-#     bins = pd.qcut(score, q=q, retbins=True, duplicates='drop', precision=8)[1]
+def cardinality_encoder(x, splitter='qcut', q=10, winsor=True, append=False):
+    x = pd.Series(x)
+    # bins = pd.qcut(x=x, q=q, retbins=True, duplicates='drop', precision=4)[1]
 
-    if is_integer(q):
-        quantiles = np.linspace(0, 1, q + 1)
+    if splitter == 'qcut':
+        quantiles = np.linspace(start=0, stop=1, num=q + 1)
+        bins = algos.quantile(x, quantiles)
+    elif splitter == 'cut':
+        bins = np.linspace(start=x.min(), stop=x.max(), num=q + 1)
     else:
-        quantiles = q
-
-    bins = algos.quantile(score, quantiles)
+        raise ValueError('splitter is not defined.')
 
     if winsor:
         bins[-1] = np.inf
         bins[0] = -np.inf
     if append:
         bins = np.append(bins, append)
-        bins.sort()
-    if de_dup:
         bins = np.unique(bins)
+        bins.sort()
 
-    labels = _format_labels(bins, precision=8)
+    indices = bins.searchsorted(x, side='left').astype(np.float64)
+    indices[x == bins[0]] = 1
+    na_mask = np.isnan(x)
+    if na_mask.any():
+        np.putmask(indices, na_mask, 0)
+    indices -= 1
 
-    return bins, labels
+    bins_formatted = _format_labels(bins=bins,
+                                    precision=4,
+                                    right=True,
+                                    include_lowest=True)
+    labels = algos.take_nd(arr=bins_formatted, indexer=indices)
 
-
-def x_encoder(score, splitter='qcut', q=10, order=True, fillna=-1):
-    score = pd.Series(score)
-
-    if splitter == 'qcut':
-        bins, _ = equifrequency_cutpoints(score, q=q, winsor=True, 
-                                          append=False, de_dup=True)
-        intervals = len(bins)-1
-    elif splitter == 'cut':
-        bins = intervals = q
-    elif splitter == 'cluster':
-        raise ValueError('splitter is not defined.')
-    else:
-        raise ValueError('splitter is not defined.')
-    
-    labels = range(intervals, 0, -1) if order else None
-
-    levels = pd.cut(score, bins=bins, labels=labels)
-    
-    if fillna is not False:
-        levels.cat.add_categories([fillna], inplace=True)
-        levels.fillna(fillna, inplace=True)
-
-    return levels
+    return bins, indices, labels
 
 
 def describer(df, bins_dict, y=None, columns=None, sort_index=False):
@@ -92,6 +75,12 @@ def describer(df, bins_dict, y=None, columns=None, sort_index=False):
         pivot = pivot[y].drop(columns=['mean', 'lift'])
 
     return pivot
+
+
+
+
+from sklearn.model_selection import StratifiedKFold
+from itertools import product
 
 
 class MeanEncoder:
