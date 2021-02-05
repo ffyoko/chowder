@@ -40,8 +40,9 @@ def cardinality_encoder(x, splitter='qcut', q=10, winsor=True, append=False):
     return bins, indices, labels
 
 
-def describer(df, y=None, columns=None, sort_index=False):
+def describer(df, y=None, columns=None):
     pivot = pd.DataFrame()
+
     if not y:
         y = '__mark'
         df[y] = 0
@@ -58,18 +59,12 @@ def describer(df, y=None, columns=None, sort_index=False):
                                dropna=False).agg({y: ['count', 'mean']})
         pivot_tmp['proportion'] = pivot_tmp[y]['count'] / len(df)
         pivot_tmp['lift'] = pivot_tmp[y]['mean'] / df[y].mean()
-        pivot_tmp.columns = pd.MultiIndex(
-            levels=[[y], ['count', 'mean', 'proportion', 'lift']],
-            codes=[[0] * 4, list(range(0, 4))])
-        desc_list = pivot_tmp.index.astype(str).tolist()
-        rectified_index = pd.MultiIndex(levels=[[i], desc_list],
-                                        codes=[[0] * len(desc_list),
-                                               range(0, len(desc_list))],
-                                        names=['value', 'level'])
-        pivot_tmp.index = rectified_index
+        pivot_tmp.columns = pd.MultiIndex.from_tuples(
+            tuples=[(y, j) for j in ['count', 'mean', 'proportion', 'lift']])
+        pivot_tmp.index = pd.MultiIndex.from_tuples(
+            tuples=[(i, j) for j in pivot_tmp.index],
+            names=['variable', 'range'])
         pivot = pd.concat([pivot, pivot_tmp])
-        if not pivot.index.is_lexsorted() and sort_index:
-            pivot.sort_index(level=pivot.index.names, inplace=True)
 
     if y == '__mark':
         pivot = pivot[y].drop(columns=['mean', 'lift'])
