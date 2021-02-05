@@ -44,8 +44,9 @@ def describer(df, y=None, columns=None):
     pivot = pd.DataFrame()
 
     if not y:
-        y = '__mark'
+        y = '__mark__'
         df[y] = 0
+
     column_limit = columns if columns else set(df.columns) - set([y])
 
     for i in column_limit:
@@ -55,19 +56,21 @@ def describer(df, y=None, columns=None):
             q=10,
             winsor=False,
             append=[-np.inf, -1, 0, np.inf])
+
         pivot_tmp = df.groupby(by=['interval_{}'.format(i)],
-                               dropna=False).agg({y: ['count', 'mean']})
+                               dropna=False).agg({y: ['count', 'sum', 'mean']})
         pivot_tmp['proportion'] = pivot_tmp[y]['count'] / len(df)
         pivot_tmp['lift'] = pivot_tmp[y]['mean'] / df[y].mean()
         pivot_tmp.columns = pd.MultiIndex.from_tuples(
-            tuples=[(y, j) for j in ['count', 'mean', 'proportion', 'lift']])
+            tuples=[(y, j) for j in ['count', 'sum', 'mean', 'proportion', 'lift']])
         pivot_tmp.index = pd.MultiIndex.from_tuples(
             tuples=[(i, j) for j in pivot_tmp.index],
             names=['variable', 'range'])
+
         pivot = pd.concat([pivot, pivot_tmp])
 
-    if y == '__mark':
-        pivot = pivot[y].drop(columns=['mean', 'lift'])
+    if y == '__mark__':
+        pivot = pivot[y].drop(columns=['sum', 'mean', 'lift'])
 
     return pivot
 
