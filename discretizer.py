@@ -21,7 +21,7 @@ def equifrequency_cutpoints(score, q=10, winsor=True, append=False, de_dup=True)
     if winsor:
         bins[-1] = np.inf
         bins[0] = -np.inf
-    if append is not False:
+    if append:
         bins = np.append(bins, append)
         bins.sort()
     if de_dup:
@@ -57,32 +57,37 @@ def x_encoder(score, splitter='qcut', q=10, order=True, fillna=-1):
     return levels
 
 
-def describer(df, y, bins_dict, sort_index=False):
+def describer(df, bins_dict, y=None, sort_index=False):
     pivot = pd.DataFrame()
+
+    if not y:
+        y = '__mark'
+        df[y] = 0
+
     for i in set(df.columns) - set([y]):
         bins = bins_dict.get(i)
         if len(bins) > 1:
             df['interval_{}'.format(i)] = pd.cut(df[i], bins=bins, labels=None)
-
             pivot_tmp = df[['interval_{}'.format(i),
                             y]].groupby(['interval_{}'.format(i)
                                          ]).agg(['count', 'mean'])
             pivot_tmp['proportion'] = pivot_tmp[y]['count'] / len(df)
             pivot_tmp['lift'] = pivot_tmp[y]['mean'] / df[y].mean()
-
             pivot_tmp.columns = pd.MultiIndex(
                 levels=[[y], ['count', 'mean', 'proportion', 'lift']],
-                codes=[[0] * 4, list(range(0, 4))])
+                labels=[[0] * 4, list(range(0, 4))])
             desc_list = pivot_tmp.index.astype(str).tolist()
             rectified_index = pd.MultiIndex(levels=[[i], desc_list],
-                                            codes=[[0] * len(desc_list),
-                                                   range(0, len(desc_list))],
+                                            labels=[[0] * len(desc_list),
+                                                    range(0, len(desc_list))],
                                             names=['value', 'level'])
             pivot_tmp.index = rectified_index
             pivot = pd.concat([pivot, pivot_tmp])
-
             if not pivot.index.is_lexsorted() and sort_index:
                 pivot.sort_index(level=pivot.index.names, inplace=True)
+
+    if y == '__mark':
+        pivot = pivot[y].drop(columns=['mean', 'lift'])
 
     return pivot
 
