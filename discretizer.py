@@ -75,6 +75,29 @@ def describer(df, y=None, columns=None):
     return pivot
 
 
+def psi_frame(df, dt, columns, base):
+    dt_set = df[dt].unique()
+    dt_set.sort()
+    dt_tuples = [(dt_set[i], dt_set[i + 1]) for i in range(len(dt_set) - 1)]
+
+    pivot = pd.DataFrame()
+    for i in dt_set:
+        pivot_tmp = describer(df=df[df[dt] == i], y=None, columns=columns)
+        pivot_tmp.columns = pd.MultiIndex.from_tuples(
+            tuples=[(i, j) for j in ['count', 'proportion']])
+        pivot = pd.concat([pivot, pivot_tmp], axis=1)
+
+    for i in dt_tuples:
+        pivot[(i, 'psi')] = np.nan
+        for j in columns:
+            p0 = pivot[(i[0], 'proportion')].loc[(j, slice(None))]
+            p1 = pivot[(i[1], 'proportion')].loc[(j, slice(None))]
+            pivot[(i, 'psi')].loc[(j, slice(None))] = list(
+                (p0 - p1) * np.log(p0 / p1))
+
+    return pivot
+
+
 
 
 from sklearn.model_selection import StratifiedKFold
