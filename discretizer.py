@@ -57,14 +57,16 @@ def x_encoder(score, splitter='qcut', q=10, order=True, fillna=-1):
     return levels
 
 
-def describer(df, bins_dict, y=None, sort_index=False):
+def describer(df, bins_dict, y=None, columns=None, sort_index=False):
     pivot = pd.DataFrame()
 
     if not y:
         y = '__mark'
         df[y] = 0
 
-    for i in set(df.columns) - set([y]):
+    column_limit = columns if columns else set(df.columns) - set([y])
+
+    for i in column_limit:
         bins = bins_dict.get(i)
         if len(bins) > 1:
             df['interval_{}'.format(i)] = pd.cut(df[i], bins=bins, labels=None)
