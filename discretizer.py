@@ -40,7 +40,7 @@ def cardinality_encoder(x, splitter='qcut', q=10, winsor=True, append=False):
     return bins, indices, labels
 
 
-def describer(df, y=None, columns=None):
+def describer(df, y=None, columns=None, bins_dict=None):
     pivot = pd.DataFrame()
 
     if not y:
@@ -50,12 +50,21 @@ def describer(df, y=None, columns=None):
     column_limit = columns if columns else set(df.columns) - set([y])
 
     for i in column_limit:
-        _, _, df['interval_{}'.format(i)] = cardinality_encoder(
-            x=df[i],
-            splitter='qcut',
-            q=10,
-            winsor=False,
-            append=[-np.inf, -1, 0, np.inf])
+        if bins_dict:
+            df['interval_{}'.format(i)] = pd.cut(x=df[i],
+                                                 bins=bins_dict.get(i),
+                                                 right=True,
+                                                 labels=None,
+                                                 retbins=False,
+                                                 precision=4,
+                                                 include_lowest=True)
+        else:
+            _, _, df['interval_{}'.format(i)] = cardinality_encoder(
+                x=df[i],
+                splitter='qcut',
+                q=10,
+                winsor=True,
+                append=False)
 
         pivot_tmp = df.groupby(by=['interval_{}'.format(i)],
                                dropna=False).agg({y: ['count', 'sum', 'mean']})
@@ -75,14 +84,27 @@ def describer(df, y=None, columns=None):
     return pivot
 
 
-def psi_frame(df, dt, columns, base):
+def psi_frame(df, dt, columns, base=None):
     dt_set = df[dt].unique()
     dt_set.sort()
-    dt_tuples = [(dt_set[i], dt_set[i + 1]) for i in range(len(dt_set) - 1)]
+    dt_base = base if base else dt_set[0]
+    dt_tuples = [(i, dt_base) for i in (set(dt_set) - set([dt_base]))]
+
+    bins_dict = {}
+    for i in columns:
+        bins, _, _ = cardinality_encoder(x=df[i][df[dt] == dt_base],
+                                         splitter='qcut',
+                                         q=10,
+                                         winsor=True,
+                                         append=False)
+        bins_dict.update({i: bins})
 
     pivot = pd.DataFrame()
     for i in dt_set:
-        pivot_tmp = describer(df=df[df[dt] == i], y=None, columns=columns)
+        pivot_tmp = describer(df=df[df[dt] == i],
+                              y=None,
+                              columns=columns,
+                              bins_dict=bins_dict)
         pivot_tmp.columns = pd.MultiIndex.from_tuples(
             tuples=[(i, j) for j in ['count', 'proportion']])
         pivot = pd.concat([pivot, pivot_tmp], axis=1)
