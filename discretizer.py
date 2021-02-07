@@ -19,10 +19,12 @@ def cardinality_encoder(x, splitter='qcut', q=10, winsor=True, append=False):
     if winsor:
         bins[-1] = np.inf
         bins[0] = -np.inf
+
     if append:
         bins = np.append(bins, append)
-        bins = np.unique(bins)
-        bins.sort()
+
+    bins = np.unique(bins)
+    bins.sort()
 
     indices = bins.searchsorted(x, side='left').astype(np.float64)
     indices[x == bins[0]] = 1
