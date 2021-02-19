@@ -421,7 +421,7 @@ if __name__ == "__main__":
     model_to_py(params['base_score'], clf, 'clf.py')
     import clf
     clf.xgb_predict(x.loc[0])
-    df, decision_paths, scores = trees_to_dataframe(clf)
+    df, decision_path, scores = trees_to_dataframe(clf)
 
     predictor = pd.DataFrame(
         data=clf.predict(data=xgb.DMatrix(data=x), pred_leaf=True),
@@ -430,7 +430,7 @@ if __name__ == "__main__":
         predictor[f'num_trees_{i}'] = predictor[f'num_trees_{i}'].map(
             lambda x: str(i) + '-' + str(x))
         predictor[f'decision_paths_{i}'] = predictor[f'num_trees_{i}'].map(
-            decision_paths)
+            decision_path)
         predictor[f'scores_{i}'] = predictor[f'num_trees_{i}'].map(scores)
     predictor['linear_predictor'] = predictor[[
         f'scores_{i}' for i in range(0, num_boost_round)
