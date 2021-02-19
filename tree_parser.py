@@ -1,17 +1,8 @@
 import re
 import numpy as np
 import pandas as pd
-from sklearn.datasets import make_classification
-from sklearn.tree import DecisionTreeClassifier, export_graphviz
-import pydotplus
-from IPython.display import display, Image
+from sklearn.tree import DecisionTreeClassifier
 import xgboost as xgb
-
-import warnings
-warnings.filterwarnings('ignore')
-
-# from IPython.core.interactiveshell import InteractiveShell
-# InteractiveShell.ast_node_interactivity = 'all'
 
 
 def decision_paths(clf, feature_list, is_print=False):
@@ -345,6 +336,15 @@ def trees_to_dataframe(clf):
 
 
 if __name__ == "__main__":
+    import warnings
+    warnings.filterwarnings('ignore')
+    # from IPython.core.interactiveshell import InteractiveShell
+    # InteractiveShell.ast_node_interactivity = 'all'
+    from sklearn.datasets import make_classification
+    from sklearn.tree import export_graphviz
+    import pydotplus
+    from IPython.display import display, Image
+
     x, y = make_classification(n_samples=1000,
                                n_features=45,
                                n_informative=12,
