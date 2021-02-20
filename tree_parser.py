@@ -1,8 +1,6 @@
 import re
 import numpy as np
 import pandas as pd
-from sklearn.tree import DecisionTreeClassifier
-import xgboost as xgb
 
 
 def decision_paths(clf, feature_list, is_print=False):
