@@ -456,13 +456,13 @@ if __name__ == '__main__':
             eval_set=[(x, y)],
             early_stopping_rounds=early_stopping_rounds)
     clf = clf.get_booster()
+    clf.get_dump()
+    clf.trees_to_dataframe()
 
     # import os
     # os.environ['PATH'] += os.pathsep + 'C:\Program Files (x86)\Graphviz2.38/bin/'
     xgb.to_graphviz(booster=clf, num_trees=0)
 
-    clf.get_dump()
-    clf.trees_to_dataframe()
     model_to_py(base_score=params['base_score'], model=clf, out_file='clf.py')
     import clf
     clf.xgb_predict(x.loc[0])
