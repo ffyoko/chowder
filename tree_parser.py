@@ -335,94 +335,141 @@ def trees_to_dataframe(clf):
     return df, decision_paths, scores
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
+    from IPython.core.interactiveshell import InteractiveShell
+    InteractiveShell.ast_node_interactivity = 'all'
     import warnings
     warnings.filterwarnings('ignore')
-    # from IPython.core.interactiveshell import InteractiveShell
-    # InteractiveShell.ast_node_interactivity = 'all'
-    from sklearn.datasets import make_classification
-    from sklearn.tree import export_graphviz
-    import pydotplus
-    from IPython.display import display, Image
 
+    from sklearn.datasets import make_classification
     x, y = make_classification(n_samples=1000,
                                n_features=45,
                                n_informative=12,
                                n_redundant=7,
                                random_state=1)
     feature_list = [f'feature_{i}' for i in range(0, 45)]
+    y_name = 'label'
     x = pd.DataFrame(data=x, columns=feature_list)
-    y = pd.Series(data=y, name='label')
+    y = pd.Series(data=y, name=y_name)
 
-    clf = DecisionTreeClassifier(criterion='gini',
-                                 max_depth=4,
-                                 min_samples_leaf=0.01,
-                                 splitter='best',
-                                 random_state=1)
+    from sklearn.tree import DecisionTreeClassifier
+    params = {
+        'criterion': 'gini',
+        'max_depth': 3,
+        'min_samples_leaf': 0.01,
+        'splitter': 'best',
+        'random_state': 1
+    }
+    clf = DecisionTreeClassifier(**params)
     clf.fit(x, y)
-    decision_path, decision_depth = decision_paths(clf, feature_list, True)
-    leaf_batch = leaf_batches(clf, x, y)
+
+    decision_path, decision_depth = decision_paths(clf=clf,
+                                                   feature_list=feature_list,
+                                                   is_print=False)
+    leaf_batch = leaf_batches(clf=clf, x=x, y=y)
     leaf_batch['decision_path'] = leaf_batch['leaf_index'].map(
         decision_path.get)
-    leaf_batch
-    #     kwargs = {'feature_names': feature_list, 'class_names': [
-    #         '0', '1'], 'filled': True, 'rounded': True, 'special_characters': True}
-    #     dot_data = export_graphviz(clf, out_file=None, **kwargs)
-    #     export_graphviz(clf, out_file='tree.dot', **kwargs)
-    #     # with open("tree.dot", 'w') as f:
-    #     #     f = export_graphviz(clf, out_file=f)
-    #     with open('tree.dot', 'r') as f:
-    #         dot_data = f.read()
-    #     graph = pydotplus.graph_from_dot_data(dot_data)
-    #     graph.write_png('tree.png')
-    #     img = Image(graph.create_png())
-    #     display(img)
+    leaf_batch.loc[[0, 1, len(leaf_batch) - 1]]
+
     df = pd.concat([x, y], axis=1)
-    y = 'label'
     step = 300
     df['index'] = index_generator(len(df), step)
-    index = ['index']
-    rule = [
+    index_list = ['index']
+    rule_list = [
         'feature_37<=3.15 and feature_15>-1.17 and feature_39<=-1.13 and feature_9>-2.36',
         'feature_37<=3.15 and feature_15<=-1.17 and feature_21>2.51'
     ]
-    rule_simulator(df, y, index, rule)
+    simulaton = rule_simulator(df=df,
+                               y=y_name,
+                               index=index_list,
+                               rule=rule_list,
+                               splitor_sup=False)
 
-    #     params = {
-    #         'base_score': np.mean(y),
-    #         'eta': 0.1,
-    #         'max_depth': 3,
-    #         'gamma': 3,
-    #         'objective': 'reg:linear',
-    #         'eval_metric': 'mae'
-    #     }
-    params = {
-        'base_score': np.mean(y),
-        'eta': 0.1,
-        'lambda': 10,
-        'gamma': 3,
-        'max_depth': 2,
-        'subsample': 0.75,
-        'colsample_bytree': 0.75,
-        'min_child_weight': 2,
-        'objective': 'binary:logistic',
-        'booster': 'gbtree',
-        'eval_metric': 'auc'
+    from sklearn.tree import export_graphviz
+    import pydotplus
+    from IPython.display import display, Image
+    kwargs = {
+        'feature_names': feature_list,
+        'class_names': ['0', '1'],
+        'filled': True,
+        'rounded': True,
+        'special_characters': True
     }
-    num_boost_round = 3
+    with open('tree.dot', 'w') as f:
+        f = export_graphviz(clf, out_file=f)
+    with open('tree.dot', 'r') as f:
+        dot_data = f.read()
+    export_graphviz(clf, out_file='tree.dot', **kwargs)
+    dot_data = export_graphviz(clf, out_file=None, **kwargs)
+    graph = pydotplus.graph_from_dot_data(dot_data)
+    graph.write_png('tree.png')
+    img = Image(graph.create_png())
+    display(img)
+
+    params = {
+        'booster': 'gbtree',
+        'nthread': -1,
+        'num_boost_round': 30,
+
+        'eta': 0.1,
+        'gamma': 3,
+        'max_depth': 3,
+        'min_child_weight': 2,
+        'alpha': 0,
+        'lambda': 0.1,
+        'tree_method': 'exact',
+
+        'objective': 'binary:logistic',
+        'base_score': np.mean(y),
+        'eval_metric': ['auc'],
+        'seed': 1
+    }
+    num_boost_round = params.get('num_boost_round')
+    early_stopping_rounds = 10
+    import xgboost as xgb
     clf = xgb.train(params=params,
+                    num_boost_round=num_boost_round,
                     dtrain=xgb.DMatrix(data=x, label=y),
-                    num_boost_round=num_boost_round)
+                    evals=[(xgb.DMatrix(data=x, label=y), y_name)],
+                    early_stopping_rounds=early_stopping_rounds)
+
+    params = {
+        'booster': 'gbtree',
+        'n_jobs': -1,
+        'n_estimators': 30,
+
+        'learning_rate': 0.1,
+        'gamma': 3,
+        'max_depth': 3,
+        'min_child_weight': 2,
+        'reg_alpha': 0,
+        'reg_lambda': 0.1,
+        'tree_method': 'exact',
+
+        'objective': 'binary:logistic',
+        'base_score': np.mean(y),
+        'eval_metric': ['auc'],
+        'random_state': 1
+    }
+    from xgboost.sklearn import XGBClassifier
+    clf = XGBClassifier(**params)
+    clf.fit(X=x,
+            y=y,
+            eval_set=[(x, y)],
+            early_stopping_rounds=early_stopping_rounds)
+    clf = clf.get_booster()
+
     # import os
     # os.environ['PATH'] += os.pathsep + 'C:\Program Files (x86)\Graphviz2.38/bin/'
     xgb.to_graphviz(booster=clf, num_trees=0)
+
     clf.get_dump()
     clf.trees_to_dataframe()
-    model_to_py(params['base_score'], clf, 'clf.py')
+    model_to_py(base_score=params['base_score'], model=clf, out_file='clf.py')
     import clf
     clf.xgb_predict(x.loc[0])
-    df, decision_path, scores = trees_to_dataframe(clf)
 
+    df, decision_path, scores = trees_to_dataframe(clf)
     predictor = pd.DataFrame(
         data=clf.predict(data=xgb.DMatrix(data=x), pred_leaf=True),
         columns=[f'num_trees_{i}' for i in range(0, num_boost_round)])
@@ -438,5 +485,3 @@ if __name__ == "__main__":
     predictor['predict_result_repeat'] = predictor['linear_predictor'].map(
         lambda x: 1 / (1 + np.exp(-x)))
     predictor['predict_result'] = clf.predict(data=xgb.DMatrix(data=x))
-    
-    
