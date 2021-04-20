@@ -7,7 +7,6 @@ from pandas.core.reshape.tile import _format_labels
 def cardinality_encoder(x, splitter='qcut', q=10, winsor=True, append=False):
     x = pd.Series(x)
     # bins = pd.qcut(x=x, q=q, retbins=True, duplicates='drop', precision=4)[1]
-
     if splitter == 'qcut':
         quantiles = np.linspace(start=0, stop=1, num=q + 1)
         bins = algos.quantile(x, quantiles)
@@ -15,42 +14,33 @@ def cardinality_encoder(x, splitter='qcut', q=10, winsor=True, append=False):
         bins = np.linspace(start=x.min(), stop=x.max(), num=q + 1)
     else:
         raise ValueError('splitter is not defined.')
-
     if winsor:
         bins[-1] = np.inf
         bins[0] = -np.inf
-
     if append:
         bins = np.append(bins, append)
-
     bins = np.unique(bins)
     bins.sort()
-
     indices = bins.searchsorted(x, side='left').astype(np.float64)
     indices[x == bins[0]] = 1
     na_mask = np.isnan(x)
     if na_mask.any():
         np.putmask(indices, na_mask, 0)
     indices -= 1
-
     bins_formatted = _format_labels(bins=bins,
                                     precision=4,
                                     right=True,
                                     include_lowest=True)
     labels = algos.take_nd(arr=bins_formatted, indexer=indices)
-
     return bins, indices, labels
 
 
 def describer(df, y=None, columns=None, bins_dict=None):
     pivot = pd.DataFrame()
-
     if not y:
         y = '__mark__'
         df[y] = 0
-
     column_limit = columns if columns else set(df.columns) - set([y])
-
     for i in column_limit:
         if bins_dict:
             df['interval_{}'.format(i)] = pd.cut(x=df[i],
@@ -67,7 +57,6 @@ def describer(df, y=None, columns=None, bins_dict=None):
                 q=10,
                 winsor=True,
                 append=False)
-
         pivot_tmp = df.groupby(by=['interval_{}'.format(i)],
                                dropna=False).agg({y: ['count', 'sum', 'mean']})
         pivot_tmp['proportion'] = pivot_tmp[y]['count'] / len(df)
@@ -77,12 +66,9 @@ def describer(df, y=None, columns=None, bins_dict=None):
         pivot_tmp.index = pd.MultiIndex.from_tuples(
             tuples=[(i, j) for j in pivot_tmp.index],
             names=['variable', 'range'])
-
         pivot = pd.concat([pivot, pivot_tmp])
-
     if y == '__mark__':
         pivot = pivot[y].drop(columns=['sum', 'mean', 'lift'])
-
     return pivot
 
 
@@ -91,7 +77,6 @@ def psi_frame(df, dt, columns, base=None):
     dt_set.sort()
     dt_base = base if base else dt_set[0]
     dt_tuples = [(i, dt_base) for i in (set(dt_set) - set([dt_base]))]
-
     bins_dict = {}
     for i in columns:
         bins, _, _ = cardinality_encoder(x=df[i][df[dt] == dt_base],
@@ -100,7 +85,6 @@ def psi_frame(df, dt, columns, base=None):
                                          winsor=True,
                                          append=False)
         bins_dict.update({i: bins})
-
     pivot = pd.DataFrame()
     for i in dt_set:
         pivot_tmp = describer(df=df[df[dt] == i],
@@ -110,7 +94,7 @@ def psi_frame(df, dt, columns, base=None):
         pivot_tmp.columns = pd.MultiIndex.from_tuples(
             tuples=[(i, j) for j in ['count', 'proportion']])
         pivot = pd.concat([pivot, pivot_tmp], axis=1)
-
+    # pivot.sort_index(axis=0, level=['variable', 'range'], ascending=True, inplace=True)
     for i in dt_tuples:
         pivot[(i, 'psi')] = np.nan
         for j in columns:
@@ -118,7 +102,62 @@ def psi_frame(df, dt, columns, base=None):
             p1 = pivot[(i[1], 'proportion')].loc[(j, slice(None))]
             pivot[(i, 'psi')].loc[(j, slice(None))] = list(
                 (p0 - p1) * np.log(p0 / p1))
+    return pivot
 
+
+def histogramer(df, value, indices_base, indices_extend):
+    aggfunc = ['count', 'nunique'][0]
+    total = df.groupby(by=indices_base + indices_extend).agg(
+        {value: [aggfunc]})
+    marginal = df.groupby(by=indices_base).agg({value: [aggfunc]})
+    marginal.rename(columns={value: 'base'}, inplace=True)
+    histogram = pd.merge(left=total.reset_index(level=None, drop=False),
+                         right=marginal.reset_index(level=None, drop=False),
+                         on=indices_base,
+                         how='left')
+    histogram.set_index(keys=indices_base + indices_extend,
+                        drop=True,
+                        append=False,
+                        inplace=True)
+    histogram[(value, 'proportion'
+               )] = histogram[(value, aggfunc)] / histogram[('base', aggfunc)]
+    histogram.drop(labels=[('base', )], axis=1, inplace=True)
+    return histogram
+
+
+def iv_frame(df, y, columns):
+    columns = columns if columns else list((set(df.columns) - set([y])))
+    bins_dict = {}
+    for i in columns:
+        bins, _, _ = cardinality_encoder(x=df[i],
+                                         splitter='qcut',
+                                         q=10,
+                                         winsor=True,
+                                         append=False)
+        bins_dict.update({i: bins})
+    pivot = pd.DataFrame()
+    for i in columns:
+        df['feature'] = i
+        df['interval'] = pd.cut(x=df[i],
+                                bins=bins_dict.get(i),
+                                right=True,
+                                labels=None,
+                                retbins=False,
+                                precision=4,
+                                include_lowest=True)
+        pivot_tmp = histogramer(df=df,
+                                value=i,
+                                indices_base=['feature', 'interval'],
+                                indices_extend=[y])
+        pivot_tmp = pivot_tmp[i].unstack(level=[y])
+        pivot_tmp['tpr'] = pivot_tmp[('count', 1)] / pivot_tmp[('count', 1)].sum()
+        pivot_tmp['tnr'] = pivot_tmp[('count', 0)] / pivot_tmp[('count', 0)].sum()
+        pivot_tmp['woe'] = np.log(pivot_tmp['tpr'] / pivot_tmp['tnr'])
+        pivot_tmp['iv'] = (pivot_tmp['tpr'] - pivot_tmp['tnr']) * pivot_tmp['woe']
+        pivot_tmp.reset_index(level=None, drop=False, inplace=True)
+        pivot = pd.concat([pivot, pivot_tmp], axis=0, ignore_index=True)
+        # pivot.groupby(by=['feature']).agg({'iv': 'sum'})
+        # pivot.set_index(keys=['feature', 'interval'], drop=True, append=False, inplace=True)
     return pivot
 
 
