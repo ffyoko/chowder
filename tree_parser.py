@@ -122,14 +122,14 @@ def index_generator(length, step):
 def rule_reformer(rule, splitor_sup=False):
     import re
     feature_dict = {}
-    splitor = '<|<=|==|>=|>' + \
+    splitor = '<|<=|==|>=|>| is missing' + \
         ('|'+splitor_sup if splitor_sup is not False else '')
     for i in rule:
         for j in i.split(' and '):
             f, _ = re.split(splitor, j)
             f = f.strip()
             feature_dict.update({f: 'x["' + f + '"]'})
-    pattern = re.compile('|'.join(feature_dict.keys()))
+    pattern = re.compile(('(?=' + splitor + ')|').join(feature_dict.keys()))
     feature_list = [
         '(' + pattern.sub(lambda matched: feature_dict[matched.group(0)], i) +
         ')' for i in rule
