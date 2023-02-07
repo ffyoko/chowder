@@ -430,7 +430,7 @@ if __name__ == '__main__':
     params_constrained['interaction_constraints'] = '[[0, 2], [1, 3, 4], [5, 6]]'
     clf = xgb.train(params=params_constrained,
                     num_boost_round=num_boost_round,
-                    dtrain=xgb.DMatrix(data=x, label=y),
+                    dtrain=xgb.DMatrix(data=x, label=y, weight=None, feature_weights=None),
                     evals=[(xgb.DMatrix(data=x, label=y), y_name)],
                     early_stopping_rounds=early_stopping_rounds)
 
