@@ -425,7 +425,10 @@ if __name__ == '__main__':
     num_boost_round = params.get('num_boost_round')
     early_stopping_rounds = 10
     import xgboost as xgb
-    clf = xgb.train(params=params,
+    params_constrained = params.copy()
+    params_constrained['monotone_constraints'] = {'feature_0': 1, 'feature_2': -1}
+    params_constrained['interaction_constraints'] = '[[0, 2], [1, 3, 4], [5, 6]]'
+    clf = xgb.train(params=params_constrained,
                     num_boost_round=num_boost_round,
                     dtrain=xgb.DMatrix(data=x, label=y),
                     evals=[(xgb.DMatrix(data=x, label=y), y_name)],
