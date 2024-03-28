@@ -129,7 +129,16 @@ def rule_reformer(rule, splitor_sup=False):
             f, _ = re.split(splitor, j)
             f = f.strip()
             feature_dict.update({f: 'x["' + f + '"]'})
-    pattern = re.compile(('(?=' + splitor + ')|').join(feature_dict.keys()))
+
+    pattern_list = list(feature_dict.keys())
+    for i in pattern_list:
+        index_i = pattern_list.index(i)
+        for j in pattern_list[index_i+1:]:
+            if re.match(i, j) is not None:
+                index_j = pattern_list.index(j)
+                pattern_list.insert(index_j, pattern_list.pop(index_i))
+
+    pattern = re.compile(('(?=' + splitor + ')|').join(pattern_list))
     feature_list = [
         '(' + pattern.sub(lambda matched: feature_dict[matched.group(0)], i) +
         ')' for i in rule
